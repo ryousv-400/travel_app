@@ -6,31 +6,31 @@
 'use strict';
 
 const GeminiClient = {
-    /**
-     * Gemini APIを呼び出し、3パターンの旅行プランをJSONで取得する
-     * @param {Object} input - ユーザー入力データ
-     * @param {string} apiKey - Gemini API Key
-     * @returns {Promise<Array>} 3パターンのプラン配列
-     */
-    generatePlansAsync: async (input, apiKey) => {
-        if (!apiKey) throw new Error("API Key is missing");
+  /**
+   * Gemini APIを呼び出し、3パターンの旅行プランをJSONで取得する
+   * @param {Object} input - ユーザー入力データ
+   * @param {string} apiKey - Gemini API Key
+   * @returns {Promise<Array>} 3パターンのプラン配列
+   */
+  generatePlansAsync: async (input, apiKey) => {
+    if (!apiKey) throw new Error("API Key is missing");
 
-        // 宛先モデル（ここでは高精度なGemini 1.5 Pro あるいは高速なFlashを使用）
-        // ※JSON schemaに安定対応している1.5系を利用
-        const MODEL_NAME = "gemini-1.5-flash";
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${apiKey}`;
+    // 宛先モデル（ここでは高精度なGemini 1.5 Pro あるいは高速なFlashを使用）
+    // ※JSON schemaに安定対応している1.5系を利用
+    const MODEL_NAME = "gemini-1.5-flash";
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${apiKey}`;
 
-        // 目的地や条件の文字列化
-        const stylesStr = Object.entries(input.travelStyles)
-            .filter(([_, val]) => val)
-            .map(([key, _]) => {
-                const map = { nature: '自然・絶景', gourmet: 'グルメ', themepark: 'テーマパーク', onsen: '温泉' };
-                return map[key] || key;
-            }).join('・');
+    // 目的地や条件の文字列化
+    const stylesStr = Object.entries(input.travelStyles)
+      .filter(([_, val]) => val)
+      .map(([key, _]) => {
+        const map = { nature: '自然・絶景', gourmet: 'グルメ', themepark: 'テーマパーク', onsen: '温泉' };
+        return map[key] || key;
+      }).join('・');
 
-        // システムプロンプト作成
-        // ※出力形式を既存システム（planner.js）と完全に一致させるためのJSON Schema定義をシステムプロンプトに埋め込む
-        const systemInstruction = `
+    // システムプロンプト作成
+    // ※出力形式を既存システム（planner.js）と完全に一致させるためのJSON Schema定義をシステムプロンプトに埋め込む
+    const systemInstruction = `
 あなたは「幼児連れ家族旅行のプロフェッショナルプランナー」です。
 ユーザーから与えられた条件（出発地、目的地、泊数、子供の年齢、旅行の好み）をもとに、最高に楽しく、かつ幼児連れに無理のない現実的な旅行プランを、異なる3つのテーマで作成してください。
 テーマの例：「のんびり自然・温泉満喫」「王道グルメ＋観光スポット」「子供大喜びアクティブ」など。
@@ -90,7 +90,7 @@ const GeminiClient = {
 spot 情報は、もし実在の場所なら "spot": {"name": "スポット名", "lat": 緯度(数値), "lng": 経度(数値), "notes": "スポットの補足"} のように含めてもよいですが必須ではありません。必須プロパティは time, endTime, type, label, duration, icon, color, subLabel, tip(任意) です。
 `.trim();
 
-        const userPrompt = `
+    const userPrompt = `
 【旅行条件】
 - 目的地: ${input.destination}
 - 泊数: ${input.nights}泊
@@ -104,50 +104,56 @@ spot 情報は、もし実在の場所なら "spot": {"name": "スポット名",
 この条件で、AIが厳選した実在のスポット・お店・ルートを用いた、3つの異なるパターンの旅行プラン（JSON配列）を生成してください。
 `;
 
-        const requestBody = {
-            contents: [{ parts: [{ text: userPrompt }] }],
-            systemInstruction: { parts: [{ text: systemInstruction }] },
-            generationConfig: {
-                temperature: 0.7,
-                responseMimeType: "application/json",
-            }
-        };
+    const requestBody = {
+      contents: [{ parts: [{ text: userPrompt }] }],
+      systemInstruction: { parts: [{ text: systemInstruction }] },
+      generationConfig: {
+        temperature: 0.7,
+        responseMimeType: "application/json",
+      }
+    };
 
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(requestBody)
+      });
+
+      if (!response.ok) {
+        let errData = "";
         try {
-            const response = await fetch(url, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(requestBody)
-            });
-
-            if (!response.ok) {
-                const errData = await response.text();
-                throw new Error(`Gemini API Error: ${response.status} ${errData}`);
-            }
-
-            const data = await response.json();
-
-            // 応答からJSONテキストを抽出
-            if (data.candidates && data.candidates[0].content.parts[0].text) {
-                let jsonText = data.candidates[0].content.parts[0].text;
-                // JSONパース（Markdownの残骸があれば除去）
-                jsonText = jsonText.replace(/^\s*```json/i, '').replace(/```\s*$/i, '').trim();
-                const plans = JSON.parse(jsonText);
-
-                // バリデーション
-                if (!Array.isArray(plans) || plans.length === 0) {
-                    throw new Error("Invalid format: expected array of plans");
-                }
-
-                // 旧timeline互換処理を追加
-                plans.forEach(p => { p.timeline = p.dayPlans; });
-                return plans;
-            } else {
-                throw new Error("Unexpected API response structure");
-            }
-        } catch (err) {
-            console.error("[Gemini API] Failed to generate plans:", err);
-            throw err;
+          const errJson = await response.json();
+          errData = errJson.error ? errJson.error.message : JSON.stringify(errJson);
+        } catch (e) {
+          errData = await response.text();
         }
+        throw new Error(`Gemini API Error: [${response.status}] ${errData}`);
+      }
+
+      const data = await response.json();
+
+      // 応答からJSONテキストを抽出
+      if (data.candidates && data.candidates[0].content.parts[0].text) {
+        let jsonText = data.candidates[0].content.parts[0].text;
+        // JSONパース（Markdownの残骸があれば除去）
+        jsonText = jsonText.replace(/^\s*```json/i, '').replace(/```\s*$/i, '').trim();
+        const plans = JSON.parse(jsonText);
+
+        // バリデーション
+        if (!Array.isArray(plans) || plans.length === 0) {
+          throw new Error("Invalid format: expected array of plans");
+        }
+
+        // 旧timeline互換処理を追加
+        plans.forEach(p => { p.timeline = p.dayPlans; });
+        return plans;
+      } else {
+        throw new Error("Unexpected API response structure");
+      }
+    } catch (err) {
+      console.error("[Gemini API] Failed to generate plans:", err);
+      throw err;
     }
+  }
 };
