@@ -105,7 +105,18 @@ async function onFormSubmit(e) {
           return await GeminiClient.generatePlansAsync(input, apiKey);
         } catch (apiErr) {
           console.warn("[TravelPlanner] Gemini API failed. Falling back to local generation. Error:", apiErr);
-          showToast('⚠️ AIの通信が混み合っているため、ローカル生成プランを表示します。');
+
+          let errMsg = '⚠️ AIの通信に失敗しました。ローカル版を表示します。';
+          const errStr = apiErr.toString();
+          if (errStr.includes('API_KEY_INVALID') || errStr.includes('400')) {
+            errMsg = '⚠️ APIキーが無効か間違っています。設定を確認してください。';
+          } else if (errStr.includes("JSON") || errStr.includes("format")) {
+            errMsg = '⚠️ AIの出力が乱れたため、ローカル版を表示します。';
+          } else {
+            errMsg = `⚠️ 通信エラー(${errStr.substring(0, 20)}...) ローカル版を表示します。`;
+          }
+          showToast(errMsg);
+
           return generateTravelPlans(input); // ローカル版（planner.js内）の同期関数を呼ぶ
         }
       } else {
