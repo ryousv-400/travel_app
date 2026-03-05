@@ -17,7 +17,7 @@ const GeminiClient = {
 
     // 宛先モデル（ここでは高精度なGemini 1.5 Pro あるいは高速なFlashを使用）
     // ※JSON schemaに安定対応している1.5系を利用
-    const MODEL_NAME = "gemini-1.5-flash";
+    const MODEL_NAME = "gemini-1.5-flash-latest";
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${apiKey}`;
 
     // 目的地や条件の文字列化
