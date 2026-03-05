@@ -89,11 +89,34 @@ async function onFormSubmit(e) {
   loadingEl.classList.remove('hidden');
 
   try {
-    // 少し遅延を入れてUIを滑らかに
-    await new Promise(r => setTimeout(r, 800));
+    // 最低限のローディング時間（UX用）
+    const minWait = new Promise(r => setTimeout(r, 1200));
 
     const input = collectFormData();
-    currentPlans = generateTravelPlans(input);
+
+    // APIキー取得
+    const apiKey = typeof SettingsManager !== 'undefined' ? SettingsManager.getApiKey() : '';
+
+    // プラン生成処理（API通信 or ローカルフォールバック）
+    const generateTask = async () => {
+      if (apiKey && apiKey.length > 20) {
+        try {
+          console.log("[TravelPlanner] Attempting to generate plans via Gemini API...");
+          return await GeminiClient.generatePlansAsync(input, apiKey);
+        } catch (apiErr) {
+          console.warn("[TravelPlanner] Gemini API failed. Falling back to local generation. Error:", apiErr);
+          showToast('⚠️ AIの通信が混み合っているため、ローカル生成プランを表示します。');
+          return generateTravelPlans(input); // ローカル版（planner.js内）の同期関数を呼ぶ
+        }
+      } else {
+        console.log("[TravelPlanner] No API Key set. Generating plans locally...");
+        return generateTravelPlans(input);
+      }
+    };
+
+    // 同時実行・待機
+    const [plans, _] = await Promise.all([generateTask(), minWait]);
+    currentPlans = plans;
 
     renderPlanVariants(currentPlans);
 
