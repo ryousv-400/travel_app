@@ -20,6 +20,7 @@ const childrenContainer = document.getElementById('childrenAges');
 
 // ─── グローバル状態 ────────────────────────────────────────────────────────
 let currentPlan = null;
+let currentPlans = [];
 let currentDay = 0;     // 0-indexed
 let leafletMap = null;
 let routeLayer = null;
@@ -92,13 +93,9 @@ async function onFormSubmit(e) {
     await new Promise(r => setTimeout(r, 800));
 
     const input = collectFormData();
-    currentPlan = generateTravelPlan(input);
+    currentPlans = generateTravelPlans(input);
 
-    renderPlan(currentPlan);
-    resultEl.classList.remove('hidden');
-
-    // スムーズスクロール
-    resultEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    renderPlanVariants(currentPlans);
 
   } catch (err) {
     console.error('[TravelPlanner] プラン生成中にエラーが発生しました:', err);
@@ -132,6 +129,56 @@ function collectFormData() {
     budgetLevel: data.get('budgetLevel') || 'standard',
     specialNotes: data.get('specialNotes') || '',
   };
+}
+
+// ─── パターン選択UI ──────────────────────────────────────────────────────
+function renderPlanVariants(plans) {
+  resultEl.classList.add('hidden');
+  const container = document.getElementById('planVariants');
+  container.classList.remove('hidden');
+
+  container.innerHTML = `
+      <h2 class="section-title">✨ プランを選んでください</h2>
+      <div class="plan-variants-scroll">
+        ${plans.map((p, idx) => `
+          <div class="variant-card" onclick="selectPlanVariant(${idx})" style="--theme-color: ${p.variant.color}">
+              <div class="variant-header">
+                  <h3>${p.variant.title}</h3>
+              </div>
+              <div class="variant-body">
+                  <p class="variant-desc">${p.variant.desc}</p>
+                  <ul class="variant-highlights">
+                      <li>🎯 スポット: ${p.summary.totalSpots}ヶ所</li>
+                      <li>🍽️ お食事: ${p.summary.totalMeals}回</li>
+                      <li>🚗 移動: 約${formatDuration(p.summary.estimatedTotalDrivingMin)}</li>
+                  </ul>
+                  <button class="variant-select-btn" onclick="event.stopPropagation(); selectPlanVariant(${idx})">
+                      このプランを見る ⇒
+                  </button>
+              </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+
+  container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function selectPlanVariant(idx) {
+  currentPlan = currentPlans[idx];
+
+  const cards = document.querySelectorAll('.variant-card');
+  cards.forEach((c, i) => {
+    if (i === idx) c.classList.add('selected');
+    else c.classList.remove('selected');
+  });
+
+  resultEl.classList.remove('hidden');
+  renderPlan(currentPlan);
+
+  setTimeout(() => {
+    resultEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 100);
 }
 
 // ─── プラン描画 ───────────────────────────────────────────────────────────

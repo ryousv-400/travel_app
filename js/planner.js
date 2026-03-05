@@ -541,3 +541,43 @@ function generateTravelPlan(input) {
 
     return plan;
 }
+
+// ─── 追加機能: パターン複数生成 ──────────────────────────────────────────
+/**
+ * 3つの旅行プランパターンを生成する
+ * @param {Object} input - ユーザー入力
+ * @returns {Array} プランの配列（3要素）
+ */
+function generateTravelPlans(input) {
+    // パターン1: のんびり自然派 (nature + onsen)
+    const p1Input = { ...input, travelStyles: { nature: true, onsen: true, gourmet: false, themepark: false } };
+    const p1 = generateTravelPlan(p1Input);
+    p1.variant = {
+        id: 'nature',
+        title: '🌿 のんびり自然派',
+        desc: '絶景と温泉で癒やされるゆったり旅',
+        color: '#10b981'
+    };
+
+    // パターン2: 食べ歩きグルメ派 (gourmet + onsen)
+    const p2Input = { ...input, travelStyles: { gourmet: true, onsen: true, nature: false, themepark: false } };
+    const p2 = generateTravelPlan(p2Input);
+    p2.variant = {
+        id: 'gourmet',
+        title: '🍽️ 食べ歩きグルメ派',
+        desc: '美味しいものを堪能する満腹旅',
+        color: '#ef4444'
+    };
+
+    // パターン3: アクティブ体験派 (themepark + nature + gourmet)
+    const p3Input = { ...input, travelStyles: { themepark: true, nature: true, gourmet: true, onsen: false } };
+    const p3 = generateTravelPlan(p3Input);
+    p3.variant = {
+        id: 'active',
+        title: '🎡 アクティブ体験派',
+        desc: 'テーマパークや自然で遊び尽くす旅',
+        color: '#f59e0b'
+    };
+
+    return [p1, p2, p3];
+}
