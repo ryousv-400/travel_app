@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="幼児連れ家族向け旅行プランを自動生成。延岡市発の道中を最大限楽しむルートを提案します。">
+  <title>KosoDate Travel Planner | 幼児連れ旅行プラン自動生成</title>
+
+  <!-- Leaflet.js（地図） -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin="" defer></script>
+
+  <!-- スタイル -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+
+  <!-- ─── ヘッダー ─────────────────────────────────────────────── -->
+  <header class="header">
+    <span class="header-emoji">✈️</span>
+    <h1>KosoDate Travel Planner</h1>
+    <p class="header-sub">幼児連れ家族のための、賢い旅行プラン自動生成アプリ</p>
+    <div class="header-badge">
+      <span>🍼 4歳・2歳ファミリー仕様</span>
+      <span style="opacity:.4">|</span>
+      <span>🚗 延岡市発</span>
+    </div>
+  </header>
+
+  <!-- ─── メインコンテンツ ─────────────────────────────────────── -->
+  <main class="main">
+
+    <!-- ── 入力フォーム ──────────────────────────────────────── -->
+    <section aria-label="旅行プラン入力フォーム">
+      <h2 class="section-title">📋 旅行の情報を入力してください</h2>
+      <div class="form-card">
+        <form id="planForm" novalidate>
+          <div class="form-grid">
+
+            <!-- 目的地 -->
+            <div class="form-group">
+              <label for="destination">🗺️ 目的地</label>
+              <select id="destination" name="destination" required>
+                <option value="" disabled selected>目的地を選択</option>
+                <option value="別府">大分・別府</option>
+                <option value="由布院">大分・由布院</option>
+                <option value="阿蘇">熊本・阿蘇</option>
+                <option value="熊本市">熊本市</option>
+                <option value="宮崎市">宮崎市</option>
+                <option value="高千穂">宮崎・高千穂</option>
+              </select>
+            </div>
+
+            <!-- 泊数 -->
+            <div class="form-group">
+              <label for="nights">🌙 宿泊日数</label>
+              <select id="nights" name="nights">
+                <option value="1" selected>1泊2日</option>
+                <option value="2">2泊3日</option>
+                <option value="3">3泊4日</option>
+                <option value="4">4泊5日</option>
+              </select>
+            </div>
+
+            <!-- 出発日 -->
+            <div class="form-group">
+              <label for="departureDate">📅 出発日</label>
+              <input type="date" id="departureDate" name="departureDate" required>
+            </div>
+
+            <!-- 出発時刻 -->
+            <div class="form-group">
+              <label for="departureTime">⏰ 出発時刻</label>
+              <input type="time" id="departureTime" name="departureTime" value="08:00">
+            </div>
+
+            <!-- 子供の人数 -->
+            <div class="form-group">
+              <label for="childCount">👶 子供の人数</label>
+              <select id="childCount" name="childCount">
+                <option value="1">1人</option>
+                <option value="2" selected>2人</option>
+                <option value="3">3人</option>
+                <option value="4">4人</option>
+              </select>
+            </div>
+
+            <!-- 子供の年齢（動的生成） -->
+            <div class="form-group">
+              <label>🎂 子供の年齢</label>
+              <div class="children-ages" id="childrenAges"></div>
+            </div>
+
+            <!-- 旅行スタイル -->
+            <div class="form-group full-width">
+              <label>🎯 旅行スタイル（複数選択可）</label>
+              <div class="style-checkboxes">
+                <label class="style-check">
+                  <input type="checkbox" name="style_nature"> 🌿 自然・絶景
+                </label>
+                <label class="style-check">
+                  <input type="checkbox" name="style_gourmet" checked> 🍽️ グルメ
+                </label>
+                <label class="style-check">
+                  <input type="checkbox" name="style_themepark"> 🎡 テーマパーク
+                </label>
+                <label class="style-check">
+                  <input type="checkbox" name="style_onsen" checked> ♨️ 温泉
+                </label>
+              </div>
+            </div>
+
+            <!-- 予算レベル -->
+            <div class="form-group full-width">
+              <label>💰 予算レベル</label>
+              <div class="budget-radios">
+                <label class="budget-radio">
+                  <input type="radio" name="budgetLevel" value="economy"> 💴 エコノミー
+                </label>
+                <label class="budget-radio">
+                  <input type="radio" name="budgetLevel" value="standard" checked> 💳 スタンダード
+                </label>
+                <label class="budget-radio">
+                  <input type="radio" name="budgetLevel" value="rich"> 💎 リッチ
+                </label>
+              </div>
+            </div>
+
+            <!-- 宿泊先 -->
+            <div class="form-group full-width">
+              <label for="hotelName">🏨 宿泊先（任意）</label>
+              <input type="text" id="hotelName" name="hotelName" placeholder="例: 由布院 泰葉　※空欄の場合は自動でおすすめ宿泊先を選択します">
+            </div>
+
+            <!-- 特記事項 -->
+            <div class="form-group full-width">
+              <label for="specialNotes">📝 特記事項（アレルギーなど）</label>
+              <textarea id="specialNotes" name="specialNotes" rows="2"
+                placeholder="例: 卵アレルギーあり・車酔いしやすい・ベビーカー持参"></textarea>
+            </div>
+
+
+          </div><!-- /form-grid -->
+
+          <button type="submit" class="submit-btn" id="generateBtn">
+            <span>🗺️ プランを自動生成する</span>
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <!-- ── ローディング ────────────────────────────────────────── -->
+    <div class="loading-section hidden" id="loading">
+      <div class="loading-spinner"></div>
+      <p class="loading-text">✨ 幼児連れに最適なプランを生成中...</p>
+    </div>
+
+    <!-- ── 結果表示セクション ──────────────────────────────────── -->
+    <section class="result-section hidden" id="result" aria-label="生成された旅行プラン">
+
+      <!-- サマリー -->
+      <h2 class="section-title">🎉 あなたの旅行プラン</h2>
+      <div class="summary-card" id="summary"></div>
+
+      <!-- アクションボタン -->
+      <div class="action-buttons">
+        <button class="action-btn btn-print" id="printBtn">🖨️ 印刷する</button>
+        <button class="action-btn btn-share" id="shareBtn">🔗 URLをシェア</button>
+      </div>
+
+      <!-- デイタブ -->
+      <div class="day-tabs-container" id="dayTabs" role="tablist" aria-label="日程タブ"></div>
+
+      <!-- タイムライン -->
+      <div class="timeline-wrapper">
+        <div class="timeline" id="timeline" role="list"></div>
+      </div>
+
+      <!-- 地図 -->
+      <section class="map-section" aria-label="旅行ルートマップ">
+        <h2 class="section-title">🗺️ ルートマップ</h2>
+        <div id="map"></div>
+      </section>
+
+      <!-- アドバイスTips -->
+      <section class="tips-section" id="tipsSection" aria-label="旅行アドバイス"></section>
+
+    </section><!-- /result -->
+
+  </main>
+
+  <!-- ─── フッター ─────────────────────────────────────────────── -->
+  <footer class="footer">
+    <p>🍼 KosoDate Travel Planner — 大切な家族との旅を、もっと楽しく。</p>
+    <p style="margin-top:4px; font-size:0.75rem;">出発地: 延岡市若葉町2丁目 固定｜地図データ: © OpenStreetMap contributors</p>
+  </footer>
+
+  <!-- ─── JavaScript ────────────────────────────────────────────── -->
+  <script src="js/spots.js"></script>
+  <script src="js/planner.js"></script>
+  <script src="js/app.js"></script>
+
+</body>
+
+</html>
